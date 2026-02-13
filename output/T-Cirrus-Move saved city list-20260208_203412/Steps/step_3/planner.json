@@ -1,0 +1,6 @@
+{
+    "name": "planner",
+    "messages": null,
+    "response": "The current screen shows the \"Manage locations\" page with three entries: '巴黎' (Paris), '上海' (Shanghai), and a coordinate entry. The user wants to move '上海' to the first position in the list (i.e., above '巴黎'). Since the instruction says \"drag it up\", and the UI indicates \"Hold and drag to sort\", we can directly perform a drag operation on the '上海' entry upward to the top position. The previous step successfully opened the \"Manage locations\" page, so the next action is to drag '上海' to the top. We must ensure the drag is from the '上海' row upward past the '巴黎' row to place it first. No explored components are blocking this path; the plan remains valid.\n1. Drag the '上海' entry upward to the first position in the list (above '巴黎'). 2. Execute the `answer` action.",
+    "step_id": 3
+}

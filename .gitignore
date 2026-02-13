@@ -1,10 +1,10 @@
-/output
-/output-frontend/
+/output/jobs
+/output/results.xlsx
+
 /agent-core/output/
 /agent-core/output-history.zip
 /test1.json
-/uploads/
-/output-history/
+
 /agent-core/output-history/
 /web/data/scenarios/
 
@@ -60,6 +60,4 @@ build/
 
 *.md
 .env
-output/*
-output-display/*
 

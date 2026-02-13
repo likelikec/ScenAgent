@@ -1,0 +1,41 @@
+{
+    "total_plan": "点击左上角的菜单图标（三条横线）以打开导航抽屉。在导航抽屉中点击“管理位置”选项。无已完成的子目标。（拖动尝试未改变顺序，因为顺序已正确；当前状态已自然满足目标。）完成",
+    "subgoals": [
+        {
+            "subgoal": "1. 点击左上角的菜单图标（三条横线）以打开导航抽屉。2",
+            "info": {
+                "opter": "adb shell input tap 82 173",
+                "picture": [
+                    {
+                        "last": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74054-2e514262.png",
+                        "next": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74097-18bfdf37.png"
+                    }
+                ]
+            }
+        },
+        {
+            "subgoal": "1. 点击导航抽屉中的“管理位置”选项。2",
+            "info": {
+                "opter": "adb shell input tap 384 718",
+                "picture": [
+                    {
+                        "last": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74097-18bfdf37.png",
+                        "next": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74126-b1babe88.png"
+                    }
+                ]
+            }
+        },
+        {
+            "subgoal": "1. 将“上海”条目向上拖动至列表首位（位于“巴黎”上方）。",
+            "info": {
+                "opter": "adb shell input draganddrop 540 748 540 468",
+                "picture": [
+                    {
+                        "last": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74126-b1babe88.png",
+                        "next": "./output\\T-Cirrus-Move saved city list-20260208_203412\\images\\screenshot_2026-02-08-74165-7ff60880.png"
+                    }
+                ]
+            }
+        }
+    ]
+}

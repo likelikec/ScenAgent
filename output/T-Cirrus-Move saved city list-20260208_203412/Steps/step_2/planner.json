@@ -1,0 +1,6 @@
+{
+    "name": "planner",
+    "messages": null,
+    "response": "The navigation drawer is now open, and the \"Manage locations\" option is visible. The next logical step is to click on \"Manage locations\" to proceed to the page where we can reorder the locations. The previous action (opening the navigation drawer) was successful, so we move forward with selecting the correct menu item.\n1. Click the \"Manage locations\" option in the navigation drawer. 2. On the manage locations page, drag the '上海' entry upward to the first position in the list (above '巴黎'). 3. Execute the `answer` action.",
+    "step_id": 2
+}
