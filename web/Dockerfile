@@ -11,7 +11,7 @@ RUN apt-get update \
 
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r /app/requirements.txt
+    && pip install --no-cache-dir --no-build-isolation -r /app/requirements.txt
 
 COPY web /app/web
 COPY agent-core /app/agent-core
