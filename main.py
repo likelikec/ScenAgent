@@ -1,4 +1,4 @@
-"""主入口：简化版，只负责参数解析和Orchestrator调用"""
+
 import os
 import sys
 

@@ -1,21 +1,15 @@
 .git
 .github
-.trae
+
 
 docs/**
 frontend/**
 output*/**
 
 web/data/scenarios/**
-web/docs/**
 
-agent-core/docs/**
-agent-core/paper/**
 
 **/__pycache__/
 **/*.py[cod]
 
-*.md
-架构.png
-ADBKeyboard.apk
 

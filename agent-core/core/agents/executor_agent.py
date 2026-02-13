@@ -1,4 +1,4 @@
-"""Executor Agent：执行Agent"""
+
 from typing import Dict, Any
 import re
 from .base_agent import BaseMobileAgent
