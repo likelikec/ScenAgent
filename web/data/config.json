@@ -1,0 +1,8 @@
+{
+  "api_key": "sk-xxx",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "model": "qwen3-vl-plus",
+  "summary_api_key": "sk-xxx",
+  "summary_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "summary_model": "qwen3-max"
+}

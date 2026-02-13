@@ -1,0 +1,272 @@
+{
+    "apps": [
+        {
+            "id": "A1",
+            "name": "mhabit",
+            "package": "io.github.friesi23.mhabit",
+            "launch-activity": "io.github.friesi23.mhabit.MainActivity"
+        },
+         {  
+            "id": "A2",
+            "name": "Cirrus",
+            "package": "org.woheller69.omweather",
+            "launch-activity": "org.woheller69.weather.activities.SplashActivity"
+        },
+        {
+            "id": "A3",
+            "name": "taobao",
+            "package": "com.taobao.taobao",
+            "launch-activity": "com.taobao.tao.welcome.Welcome"
+        },
+        {
+            "id": "A4",
+            "name": "ctrip",
+            "package": "ctrip.android.view",
+            "launch-activity": "ctrip.business.splash.CtripSplashActivity"
+        },
+        {
+            "id": "A5",
+            "name": "qqmusic",
+            "package": "com.tencent.qqmusic",
+            "launch-activity": "com.tencent.qqmusic.activity.AppStarterActivity"
+        }
+
+    ],
+    "scenarios": [ 
+  {
+    "id": "S_CheckNewHabitOrder",
+    "name": "Check display order of newly created habit",
+    "description": "After creating a new habit, the user returns to the main page to verify its position in the habit list.",
+    "extra-info": {
+      "Input Data": "Habit name: Drink water daily"
+    }
+  },
+  {
+    "id": "S_CompleteUnfinishedHabit",
+    "name": "Complete an unfinished habit",
+    "description": "On the main page, the user marks an unfinished habit as completed by clicking the question mark icon.",
+    "extra-info": {
+      "Input Data": "Habit name: Drink eight glasses of water every day; Initial state: unfinished; Final state: completed"
+    }
+  },
+  {
+    "id": "S_SearchHabit",
+    "name": "Search habit from home page",
+    "description": "Verify that searching for an existing habit name returns correct results.",
+    "extra-info": {
+      "Input Data": "喝水"
+    }
+  },
+  {
+    "id": "S_CreatePositiveHabitAndCheckColor",
+    "name": "Create a positive habit and verify color indicator",
+    "description": "The user creates a positive habit, such as drinking water daily, selects a frequency of three times per week, sets a reminder at 6:00 AM, and saves the habit.",
+    "extra-info": {
+      "Input Data": "Drink water; Frequency: three times per week; Reminder time: 6:00 AM"
+    }
+  },
+  {
+    "id": "S_SearchArchivedHabit",
+    "name": "Search archived habit",
+    "description": "The user searches for an archived habit named \"Playing football\" and verifies that it is correctly displayed.",
+    "extra-info": {
+      "Input Data": "Playing football"
+    }
+  },
+  {
+    "id": "S_MoveSavedCityList",
+    "name": "Move saved city list",
+    "description": "The user moves '上海' to the first of the list by drag it up in manage locations page",
+    "extra-info": {
+      "Input Data": "None"
+    }
+  },
+  {
+    "id": "S_ViewCityWeather",
+    "name": "View city weather",
+    "description": "On the main page, the user views the weather forecast for different saved cities.",
+    "extra-info": {
+      "Input Data": "Shanghai, Paris"
+    }
+  },
+  {
+    "id": "S_RenameCity",
+    "name": "Rename a city",
+    "description": "The user renames a saved city by opening the rename dialog and entering a new city name.",
+    "extra-info": {
+      "Input Data": "Original city: Paris; New city: Seattle"
+    }
+  },
+  {
+    "id": "S_ViewWeatherAfterThreeDays",
+    "name": "View weather forecast after three days",
+    "description": "The user views the weather forecast for Seattle three days later from the main page.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_ViewLocalRainfall",
+    "name": "View local rainfall information",
+    "description": "The user checks current rainfall conditions and the rainfall forecast for the next ten minutes.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_ViewWeatherAfterTwelveDays",
+    "name": "View weather forecast after twelve days",
+    "description": "The user views the twelve-day weather forecast for saved cities.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_ImportCityConfiguration",
+    "name": "Import previously configured cities",
+    "description": "The user imports a previously backed-up city configuration file from the settings page.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_SearchProductByKeyword",
+    "name": "Search products by keyword",
+    "description": "The user enters a product keyword in the Taobao search bar and the system returns a list of relevant products.",
+    "extra-info": {
+      "Input Data": "Bluetooth earphones"
+    }
+  },
+  {
+    "id": "S_ViewProductDetails",
+    "name": "View basic product details",
+    "description": "The user opens a product detail page to view its title, price, main image, and delivery information.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_ViewProductReviews",
+    "name": "Browse product reviews",
+    "description": "The user browses other buyers’ reviews and images on the product detail page and opens review images.",
+    "extra-info": {}
+  },
+  
+  {
+    "id": "S_AddProductToCart",
+    "name": "Add product to shopping cart",
+    "description": "The user clicks the \"Add to Cart\" button on the product detail page to add the product to the cart.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_PurchaseTShirt",
+    "name": "Purchase a T-shirt",
+    "description": "The user searches for T-shirts, selects the best-selling product, configures personal information, and waits for order confirmation.",
+    "extra-info": {
+        "Input Data": {
+            "product_name": "T-shirt",
+            "price_range": "100-300",
+            "sales_volume": "over 1000"
+        }
+    }
+  },
+  {
+    "id": "S_FilterProducts",
+    "name": "Filter products using multiple conditions",
+    "description": "The user filters products by combining price range and high sales volume conditions.",
+    "extra-info": {
+        "Input Data": {
+            "price_range": "100-300",
+            "sales_volume": "high sales"
+        }
+    }
+  },
+
+  {
+    "id": "S_SearchHotelsInCity",
+    "name": "Search hotels and view list",
+    "description": "The user enters \"San Francisco\" in the hotel search box and the system returns a list of hotels in that city.",
+    "extra-info": {
+      "Input Data": {
+        "destination": "San Francisco",
+        "check_in_date": "2026-01-21",
+        "check_out_date": "2026-01-22"
+      }
+    }
+  },
+  {
+    "id": "S_SearchTravelGuide",
+    "name": "Search travel attractions and guides",
+    "description": "The user searches for must-visit attractions and travel guides for Seattle.",
+    "extra-info": {
+      "Input Data": "Seattle"
+    }
+  },
+  {
+    "id": "S_ViewHotelDetails",
+    "name": "View hotel detail information",
+    "description": "The user opens a hotel detail page to view room types, prices, user ratings, and reviews.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_BookTrainTicket",
+    "name": "Book a train ticket",
+    "description": "The user searches for available train services from Nanjing to Beijing and completes a ticket booking.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_BookFlightAndPay",
+    "name": "Book a flight and complete online payment",
+    "description": "The user searches for a flight, fills in passenger information, and completes the booking with online payment.",
+    "extra-info": {
+      "Input Data": {
+        "Departure city": "Beijing",
+        "Arrival city": "Shanghai",
+        "Departure date": "2026-01-25",
+        "Passenger name": "Zhang Wei",
+        "ID number": "11010119900307XXXX",
+        "Payment method": "WeChat Pay"
+      }
+    }
+  },
+  {
+    "id": "S_PostCommunityNote",
+    "name": "Post a community note",
+    "description": "The user posts a note with photos and text content.",
+    "extra-info": {
+    }
+  },
+  {
+    "id": "S_SearchAndPlaySong",
+    "name": "Search and play a song",
+    "description": "The user searches for a song named \"Yellow\" and attempts to play it.",
+    "extra-info": {
+      "Input Data": "Yellow"
+    }
+  },
+  {
+    "id": "S_SetHighQualityAudio",
+    "name": "Set default playback quality to high",
+    "description": "The user sets the default playback audio quality to high in the settings.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_IdentifySongByListening",
+    "name": "Identify a song by listening",
+    "description": "The user activates the song recognition feature to identify a song through microphone input.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_HummingRecognition",
+    "name": "Activate humming recognition",
+    "description": "The user activates the humming recognition feature from the QQ Music home page.",
+    "extra-info": {}
+  },
+  {
+    "id": "S_SearchMusicByArtist",
+    "name": "Search music by artist name",
+    "description": "The user searches for music by entering an artist name.",
+    "extra-info": {
+      "Input Data": "Taylor Swift"
+    }
+  },
+  {
+    "id": "S_PostComment",
+    "name": "Post a comment",
+    "description": "The user posts a comment on the song detail page.",
+    "extra-info": {
+      "Input Data": "Sounds good"
+    }
+  }
+    ]
+}

@@ -1,0 +1,69 @@
+:root {
+  --kane-bg: #F8F9FB;
+  --kane-text: #1E293B;
+  --kane-border: #E2E8F0;
+  --kane-accent: #6366F1; /* Indigo */
+  --kane-success: #10B981; /* Emerald */
+  --kane-glass: rgba(255, 255, 255, 0.7);
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--kane-bg);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  color: var(--kane-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden; /* Prevent body scroll for one-page feel */
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Glass Card Style */
+.glass-card {
+  background: var(--kane-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.artifact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.15);
+  border-color: var(--kane-accent) !important;
+}
+
+.delete-job-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.mantine-NavLink-root:hover .delete-job-btn {
+  opacity: 1;
+}
+

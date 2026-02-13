@@ -1,0 +1,20 @@
+# Enforce LF for shell scripts (CRITICAL for Docker/Linux)
+*.sh text eol=lf
+
+# Enforce LF for Docker files
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+
+# Enforce LF for other config files that might be sensitive
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+
+# Default behavior for other files: auto-convert (safe for Windows devs)
+* text=auto

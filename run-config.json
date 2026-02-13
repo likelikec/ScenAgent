@@ -1,0 +1,23 @@
+[
+    
+    {
+        "app_id":"A2",
+        "start_id":"S_MoveSavedCityList",
+        "end_id":"S_ImportCityConfiguration"
+    },
+    {
+        "app_id":"A3",
+        "start_id":"S_SearchProductByKeyword",
+        "end_id":"S_PurchaseTShirt"
+    },
+    {
+        "app_id":"A4",
+        "start_id":"S_SearchHotelsInCity",
+        "end_id":"S_PostCommunityNote"
+    },
+    {
+        "app_id":"A5",
+        "start_id":"S_SearchAndPlaySong",
+        "end_id":"S_PostComment"
+    }
+]
