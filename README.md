@@ -1,6 +1,6 @@
-# ScenAgent (Mobile-Agent-v4)
+# ScenAgent 
 
-[English](README-EN.md) | [中文](README-ZH.md)
+[English](README.md) | [中文](README-ZH.md)
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
