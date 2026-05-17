@@ -129,6 +129,11 @@ export const dictZh: Record<string, string> = {
   'settings.llm.summaryModel': 'summary_model',
   'settings.llm.save': '写入后端',
   'settings.llm.saved': '已写入后端 LLM 配置（本地单机场景）',
+
+  'auth.login': '登录',
+  'auth.register': '注册',
+  'auth.logout': '退出',
+  'auth.langSwitch': '切换语言',
 }
 
 export const dictEn: Record<string, string> = {
@@ -242,6 +247,11 @@ export const dictEn: Record<string, string> = {
   'settings.llm.summaryModel': 'summary_model',
   'settings.llm.save': 'Write to backend',
   'settings.llm.saved': 'Saved backend LLM config (single-user local mode)',
+
+  'auth.login': 'Login',
+  'auth.register': 'Register',
+  'auth.logout': 'Logout',
+  'auth.langSwitch': 'Switch Language',
 }
 
 export function format(template: string, vars?: Record<string, string | number>): string {

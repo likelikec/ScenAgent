@@ -7,6 +7,10 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './i18n'
+import { bootstrapSession } from './auth'
+
+// Must run BEFORE React renders — <Navigate to="/run" replace /> strips query params
+bootstrapSession()
 
 const queryClient = new QueryClient()
 
@@ -15,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
     <MantineProvider 
       defaultColorScheme="light"
       theme={{
-        primaryColor: 'cyan',
+        primaryColor: 'teal',
         defaultRadius: 'md',
         fontFamily: 'Inter, system-ui, sans-serif',
         white: '#FFFFFF',

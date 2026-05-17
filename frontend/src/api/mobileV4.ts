@@ -42,6 +42,6 @@ export async function downloadArtifact(args: {
   if (args.runDir) qp.set('run_dir', args.runDir)
   const suffix = qp.toString() ? `?${qp.toString()}` : ''
   return await apiDownload(
-    `/api/v1/download/${encodeURIComponent(args.jobId)}/${args.filePath}${suffix}`,
+    `/scenAgent-api/v1/download/${encodeURIComponent(args.jobId)}/${args.filePath}${suffix}`,
   )
 }

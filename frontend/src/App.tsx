@@ -1,5 +1,5 @@
-import { AppShell, Group, NavLink, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton, Badge, Loader, ActionIcon, Burger } from '@mantine/core'
-import { IconLayoutDashboard, IconSettings, IconHistory, IconChevronLeft, IconChevronRight, IconCheck, IconAlertCircle, IconTrash, IconTimelineEvent, IconLanguage } from '@tabler/icons-react'
+import { AppShell, Group, NavLink, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton, Badge, Loader, ActionIcon, Burger, Button, Menu } from '@mantine/core'
+import { IconLayoutDashboard, IconSettings, IconHistory, IconChevronLeft, IconChevronRight, IconCheck, IconAlertCircle, IconTrash, IconTimelineEvent, IconLanguage, IconUser, IconLogout, IconLogin } from '@tabler/icons-react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { readJobHistory, removeJobHistory, type JobHistoryItem } from './state/jobHistory'
@@ -10,12 +10,21 @@ import { JobReportPage } from './pages/JobReportPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useI18n } from './useI18n'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { fetchUser, handleLogout, resolvePortalOrigin, type AuthUser } from './auth'
 
 function App() {
   const location = useLocation()
   const { t, language, setLanguage } = useI18n()
   const [opened, setOpened] = useState(true)
   const [jobsVersion, setJobsVersion] = useState(0)
+
+  const [user, setUser] = useState<AuthUser | null>(null)
+
+  useEffect(() => {
+    // bootstrapSession() is called in main.tsx before React renders,
+    // so session_id is already in sessionStorage by the time this runs.
+    fetchUser().then(setUser)
+  }, [])
 
   const [jobStatuses, setJobStatuses] = useState<Record<string, string>>({})
   const jobs = readJobHistory()
@@ -66,24 +75,62 @@ function App() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="xs">
             <Burger opened={opened} onClick={() => setOpened(!opened)} hiddenFrom="sm" size="sm" />
-            <ThemeIcon radius="md" size="md" variant="gradient" gradient={{ from: 'indigo', to: 'violet' }}>
+            <ThemeIcon radius="md" size="md" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }}>
               <IconTimelineEvent size={16} />
             </ThemeIcon>
             <Text fw={800} size="sm" style={{ letterSpacing: '-0.5px' }}>ScenAgent</Text>
           </Group>
 
-          {/* Global Language Toggle Button */}
-          <Tooltip label={language === 'zh' ? '切换到英文' : 'Switch to Chinese'}>
-            <ActionIcon
-              variant="light"
-              color="blue"
-              size="lg"
-              radius="md"
-              onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-            >
-              <IconLanguage size={18} />
-            </ActionIcon>
-          </Tooltip>
+          <Group gap="xs">
+            {/* Language Toggle */}
+            <Tooltip label={language === 'zh' ? '切换到英文' : 'Switch to Chinese'}>
+              <ActionIcon
+                variant="light"
+                color="teal"
+                size="lg"
+                radius="md"
+                onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+              >
+                <IconLanguage size={18} />
+              </ActionIcon>
+            </Tooltip>
+
+            {/* Auth: User menu or Login/Register */}
+            {user ? (
+              <Menu shadow="md" width={160} position="bottom-end">
+                <Menu.Target>
+                  <Button variant="subtle" color="teal" size="compact-sm" leftSection={<IconUser size={16} />}>
+                    {user.username || 'User'}
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item leftSection={<IconLogout size={14} />} onClick={handleLogout}>
+                    {t('auth.logout')}
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            ) : (
+              <Group gap={4}>
+                <Button
+                  variant="subtle"
+                  color="teal"
+                  size="compact-sm"
+                  leftSection={<IconLogin size={16} />}
+                  onClick={() => { window.location.href = `${resolvePortalOrigin()}/login` }}
+                >
+                  {t('auth.login')}
+                </Button>
+                <Button
+                  variant="light"
+                  color="teal"
+                  size="compact-sm"
+                  onClick={() => { window.location.href = `${resolvePortalOrigin()}/register` }}
+                >
+                  {t('auth.register')}
+                </Button>
+              </Group>
+            )}
+          </Group>
         </Group>
       </AppShell.Header>
 

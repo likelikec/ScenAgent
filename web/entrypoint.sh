@@ -33,4 +33,4 @@ if [ -n "$DEVICES_STR" ]; then
   done
 fi
 
-exec python -m uvicorn web.server:app --host 0.0.0.0 --port 8000
+exec python -m uvicorn web.server:app --host 0.0.0.0 --port 8003

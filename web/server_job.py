@@ -44,6 +44,10 @@ app.add_middleware(
 MOOCTEST_AUTH_VERIFY_URL = os.getenv(
     "MOOCTEST_AUTH_VERIFY_URL", "http://127.0.0.1:18980/api/auth/user"
 )
+MOOCTEST_JOBS_BASE_URL = os.getenv(
+    "MOOCTEST_JOBS_BASE_URL", "http://127.0.0.1:18980/api/jobs"
+).rstrip("/")
+SCENAGENT_TOOL_ID = os.getenv("MOOCTEST_SCENAGENT_TOOL_ID", "scenagent")
 
 
 def get_session_id(request: Request) -> Optional[str]:
@@ -126,6 +130,10 @@ class ConfigRequest(BaseModel):
     summary_model: Optional[str] = None
 
 
+class ExecuteRequest(BaseModel):
+    job_id: str
+
+
 class JobStore:
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
@@ -176,7 +184,6 @@ class JobStore:
 import queue
 
 job_store = JobStore(JOB_DIR)
-run_lock = threading.Lock() # 保持向后兼容，但之后会移除对它的依赖
 proc_lock = threading.Lock()
 RUNNING_PROCS: Dict[str, subprocess.Popen] = {}
 
@@ -263,20 +270,112 @@ else:
 
 device_pool = DevicePoolManager(default_devices)
 
-# 任务等待队列
-task_queue = queue.Queue()
-
-# 用户任务状态追踪
-USER_RUNNING_JOBS: Dict[str, str] = {} # user_id -> job_id
-user_lock = threading.Lock()
-
-
 def ok(result: Dict[str, Any]) -> JSONResponse:
     return JSONResponse(status_code=200, content={"code": 200, "message": "success", "result": result})
 
 
 def err(code: int, detail: str) -> JSONResponse:
     return JSONResponse(status_code=code, content={"code": code, "message": "error", "detail": detail})
+
+
+def _read_json_response(resp) -> Dict[str, Any]:
+    raw = resp.read().decode("utf-8")
+    return json.loads(raw) if raw else {}
+
+
+def create_backend_job(session_id: str) -> Dict[str, Any]:
+    if not session_id:
+        raise ValueError("missing session_id")
+    payload = {"toolId": SCENAGENT_TOOL_ID, "enqueue": False}
+    req = urllib.request.Request(
+        MOOCTEST_JOBS_BASE_URL,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Session-Id": session_id},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = _read_json_response(resp)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(detail or f"failed to create backend job: {exc.code}")
+    except Exception as exc:
+        raise RuntimeError(f"failed to create backend job: {exc}")
+
+    job = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(job, dict) or not job.get("job_id"):
+        raise RuntimeError("backend did not return job_id")
+    return job
+
+
+def enqueue_backend_job(job_id: str, session_id: str) -> None:
+    if not session_id:
+        raise ValueError("missing session_id")
+    req = urllib.request.Request(
+        f"{MOOCTEST_JOBS_BASE_URL}/{job_id}/enqueue",
+        headers={"X-Session-Id": session_id},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(detail or f"failed to enqueue backend job: {exc.code}")
+    except Exception as exc:
+        raise RuntimeError(f"failed to enqueue backend job: {exc}")
+
+
+def fetch_backend_job(job_id: str, session_id: str) -> Optional[Dict[str, Any]]:
+    if not session_id:
+        return None
+    req = urllib.request.Request(
+        f"{MOOCTEST_JOBS_BASE_URL}/{job_id}",
+        headers={"X-Session-Id": session_id},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = _read_json_response(resp)
+        job = body.get("data") if isinstance(body, dict) else None
+        return job if isinstance(job, dict) else None
+    except Exception as exc:
+        print(f"Failed to fetch backend job {job_id}: {exc}")
+        return None
+
+
+def sync_backend_job_fields(job_id: str, backend_job: Optional[Dict[str, Any]]) -> None:
+    if not backend_job:
+        return
+    updates = {}
+    for key in ("created_at", "updated_at", "completed_at", "user_id", "username", "tool_id"):
+        if key in backend_job and backend_job[key] is not None:
+            updates[key] = backend_job[key]
+    backend_status = backend_job.get("status")
+    current = job_store.get(job_id) or {}
+    local_status = current.get("status")
+    if backend_status and local_status not in ("completed", "failed", "canceled"):
+        updates["status"] = backend_status
+    if updates:
+        job_store.update(job_id, updates)
+
+
+def notify_backend_job_status(job_id: str, status: str, session_id: Optional[str] = None) -> None:
+    if status not in ("completed", "failed", "canceled"):
+        return
+    headers = {"Content-Type": "application/json"}
+    if session_id:
+        headers["X-Session-Id"] = session_id
+    req = urllib.request.Request(
+        f"{MOOCTEST_JOBS_BASE_URL}/{job_id}/{status}",
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except Exception as exc:
+        print(f"Failed to notify backend job {job_id} status {status}: {exc}")
 
 
 def read_config() -> Dict[str, Any]:
@@ -725,12 +824,12 @@ def run_job(job_id: str, req: RunRequest, device_id: Optional[str] = None) -> No
             if job_id in RUNNING_PROCS:
                 del RUNNING_PROCS[job_id]
 
-    # 检查是否已经被 api_stop 标记为 stopped
+    # 检查是否已经被 api_stop 标记为 canceled
     current_job = job_store.get(job_id)
-    if current_job and current_job.get("status") == "stopped":
-        status = "stopped"
+    if current_job and current_job.get("status") == "canceled":
+        status = "canceled"
     else:
-        status = "success" if not error else "failed"
+        status = "completed" if not error else "failed"
         
     finished_at = now_ts()
     run_dir = job_store.get(job_id).get("run_dir") if job_store.get(job_id) else None
@@ -762,67 +861,46 @@ def run_job(job_id: str, req: RunRequest, device_id: Optional[str] = None) -> No
             "artifacts": artifacts,
         },
     )
+    notify_backend_job_status(job_id, status)
 
 
-def worker_loop():
-    """后台任务消费者"""
-    while True:
-        try:
-            # 从队列中获取任务
-            job_id, req = task_queue.get()
-            
-            # 等待可用手机
-            device_id = device_pool.acquire()
-            if not device_id:
-                # 理论上不会发生，因为 acquire 是阻塞的，但这里做个保护
-                time.sleep(1)
-                task_queue.put((job_id, req))
-                task_queue.task_done()
-                continue
-                
-            try:
-                # 任务执行前的连接预检
-                if not device_pool.ensure_connected(device_id):
-                    raise RuntimeError(f"Device {device_id} is offline and could not be reconnected.")
-                
-                run_job(job_id, req, device_id=device_id)
-            except Exception as e:
-                print(f"Error running job {job_id}: {e}")
-                job_store.update(job_id, {"status": "failed", "error": str(e)})
-            finally:
-                # 任务结束，释放手机
-                device_pool.release(device_id)
-                # 移除用户活跃状态
-                with user_lock:
-                    if req.user_id in USER_RUNNING_JOBS and USER_RUNNING_JOBS[req.user_id] == job_id:
-                        del USER_RUNNING_JOBS[req.user_id]
-                task_queue.task_done()
-        except Exception as e:
-            print(f"Worker loop error: {e}")
-            time.sleep(1)
 
-# 启动 Worker 线程
-# 这里的数量可以根据手机池的大小动态调整
-# 启动与设备数量相等的 Worker 线程，实现真正的并行执行
-num_workers = len(device_pool.all_devices)
-print(f"[INIT] Starting {num_workers} worker threads for {num_workers} devices...")
-for i in range(num_workers):
-    t = threading.Thread(target=worker_loop, daemon=True, name=f"Worker-{i}")
-    t.start()
-
-
-def guarded_run_job(job_id: str, req: RunRequest) -> None:
-    # 兼容旧逻辑，但现在改用队列了
-    task_queue.put((job_id, req))
+def execute_job_with_device(job_id: str, req: RunRequest) -> None:
+    device_id = None
+    try:
+        device_id = device_pool.acquire()
+        if not device_id:
+            raise RuntimeError("No available device")
+        current_job = job_store.get(job_id)
+        if current_job and current_job.get("status") == "canceled":
+            return
+        if not device_pool.ensure_connected(device_id):
+            raise RuntimeError(f"Device {device_id} is offline and could not be reconnected.")
+        job_store.update(job_id, {"device_id": device_id})
+        run_job(job_id, req, device_id=device_id)
+    except Exception as exc:
+        print(f"Error running job {job_id}: {exc}")
+        job_store.update(
+            job_id,
+            {
+                "status": "failed",
+                "finished_at": now_ts(),
+                "error": str(exc),
+            },
+        )
+        notify_backend_job_status(job_id, "failed")
+    finally:
+        if device_id:
+            device_pool.release(device_id)
 
 
 @app.post("/api/v1/stop/{job_id}")
-def api_stop(job_id: str):
+def api_stop(job_id: str, request: Request):
     job = job_store.get(job_id)
     if not job:
         return err(404, "job_id not found")
     status = job.get("status")
-    if status in ("success", "failed", "stopped"):
+    if status in ("completed", "failed", "canceled"):
         return ok(
             {
                 "job_id": job_id,
@@ -839,11 +917,12 @@ def api_stop(job_id: str):
         job_store.update(
             job_id,
             {
-                "status": "stopped",
+                "status": "canceled",
                 "finished_at": now_ts(),
-                "error": job.get("error") or "stopped without active process",
+        "error": job.get("error") or "canceled without active process",
             },
         )
+        notify_backend_job_status(job_id, "canceled", get_session_id(request))
         job = job_store.get(job_id)
         return ok(
             {
@@ -868,11 +947,12 @@ def api_stop(job_id: str):
     job_store.update(
         job_id,
         {
-            "status": "stopped",
+            "status": "canceled",
             "finished_at": now_ts(),
-            "error": job.get("error") or "stopped by user",
+            "error": job.get("error") or "canceled by user",
         },
     )
+    notify_backend_job_status(job_id, "canceled", get_session_id(request))
     with proc_lock:
         if job_id in RUNNING_PROCS:
             del RUNNING_PROCS[job_id]
@@ -889,19 +969,11 @@ def api_stop(job_id: str):
 
 
 @app.post("/api/v1/run")
-def api_run(req: RunRequest, bg: BackgroundTasks):
+def api_run(req: RunRequest, request: Request):
     try:
-        # 1. 用户任务并发拦截
-        user_id = req.user_id or "default_user"
-        with user_lock:
-            if user_id in USER_RUNNING_JOBS:
-                active_job_id = USER_RUNNING_JOBS[user_id]
-                active_job = job_store.get(active_job_id)
-                if active_job and active_job.get("status") in ("queued", "running"):
-                    return err(400, f"User already has an active task: {active_job_id}. Please wait for it to finish or stop it first.")
-            
-            # 标记用户开始新任务
-            # 注意：这里还没分配 job_id，先往后放一下
+        session_id = get_session_id(request)
+        if not session_id:
+            return err(401, "missing session_id")
 
         # Handle simple task mode
         if req.simple_task:
@@ -931,16 +1003,9 @@ def api_run(req: RunRequest, bg: BackgroundTasks):
         if req.mode == "batch":
             if not req.run_config:
                 return err(400, "mode=batch requires run_config")
-        job_id = str(uuid.uuid4())
 
-        # 重新锁定并注册任务（防止并发间隙插入）
-        with user_lock:
-            if user_id in USER_RUNNING_JOBS:
-                active_job_id = USER_RUNNING_JOBS[user_id]
-                active_job = job_store.get(active_job_id)
-                if active_job and active_job.get("status") in ("queued", "running"):
-                    return err(400, f"User already has an active task: {active_job_id}")
-            USER_RUNNING_JOBS[user_id] = job_id
+        backend_job = create_backend_job(session_id)
+        job_id = backend_job["job_id"]
 
         job_dir = JOB_DIR / job_id
         ensure_dir(job_dir)
@@ -968,7 +1033,12 @@ def api_run(req: RunRequest, bg: BackgroundTasks):
             {
                 "job_id": job_id,
                 "status": "queued",
-                "created_at": now_ts(),
+                "created_at": backend_job.get("created_at") or now_ts(),
+                "updated_at": backend_job.get("updated_at"),
+                "completed_at": backend_job.get("completed_at"),
+                "user_id": backend_job.get("user_id"),
+                "username": backend_job.get("username"),
+                "request": req.dict(),
                 "started_at": None,
                 "finished_at": None,
                 "run_dir": initial_run_dir,
@@ -979,14 +1049,50 @@ def api_run(req: RunRequest, bg: BackgroundTasks):
                 "device_snapshot": None,
             }
         )
-        bg.add_task(guarded_run_job, job_id, req)
-        return ok({"job_id": job_id, "status": "queued", "created_at": now_ts()})
+        enqueue_backend_job(job_id, session_id)
+        return ok({"job_id": job_id, "status": "queued", "created_at": backend_job.get("created_at")})
     except Exception as exc:
         return err(500, str(exc))
 
 
+@app.post("/api/execute")
+def api_execute(req: ExecuteRequest, bg: BackgroundTasks):
+    job_id = (req.job_id or "").strip()
+    if not job_id:
+        return err(400, "job_id is required")
+    job = job_store.get(job_id)
+    if not job:
+        return err(404, "job_id not found")
+    status = job.get("status")
+    if status in ("running", "completed", "failed", "canceled"):
+        return {"job_id": job_id, "status": status}
+
+    request_data = job.get("request")
+    if not isinstance(request_data, dict):
+        job_store.update(
+            job_id,
+            {"status": "failed", "finished_at": now_ts(), "error": "job request payload not found"},
+        )
+        notify_backend_job_status(job_id, "failed")
+        return err(400, "job request payload not found")
+
+    try:
+        run_req = RunRequest(**request_data)
+    except Exception as exc:
+        job_store.update(job_id, {"status": "failed", "finished_at": now_ts(), "error": str(exc)})
+        notify_backend_job_status(job_id, "failed")
+        return err(400, f"invalid job request payload: {exc}")
+
+    job_store.update(job_id, {"status": "running", "started_at": now_ts()})
+    bg.add_task(execute_job_with_device, job_id, run_req)
+    return {"job_id": job_id, "status": "accepted"}
+
+
 @app.get("/api/v1/status/{job_id}")
-def api_status(job_id: str):
+def api_status(job_id: str, request: Request):
+    session_id = get_session_id(request)
+    if session_id:
+        sync_backend_job_fields(job_id, fetch_backend_job(job_id, session_id))
     job = job_store.get(job_id)
     if not job:
         return err(404, "job_id not found")
@@ -994,6 +1100,8 @@ def api_status(job_id: str):
         "job_id": job_id,
         "status": job.get("status"),
         "created_at": job.get("created_at"),
+        "updated_at": job.get("updated_at"),
+        "completed_at": job.get("completed_at"),
         "started_at": job.get("started_at"),
         "finished_at": job.get("finished_at"),
         "run_dir": job.get("run_dir"),

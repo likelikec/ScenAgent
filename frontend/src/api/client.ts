@@ -20,6 +20,10 @@ export class ApiError extends Error {
 
 const API_BASE_URL_STORAGE_KEY = 'mobile_v4_api_base_url'
 
+export function getSessionId(): string | null {
+  return sessionStorage.getItem('session_id') || null
+}
+
 export function getApiBaseUrl(): string {
   const stored = localStorage.getItem(API_BASE_URL_STORAGE_KEY)?.trim()
   const env = import.meta.env.VITE_API_BASE_URL?.trim()
@@ -59,10 +63,12 @@ function requireValidApiBaseUrl(): string {
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const base = requireValidApiBaseUrl()
   const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`
+  const sid = getSessionId()
   const resp = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(sid ? { 'X-Session-Id': sid } : {}),
       ...(init?.headers || {}),
     },
   })
@@ -98,7 +104,12 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const base = requireValidApiBaseUrl()
   const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`
-  const resp = await fetch(url, { method: 'POST', body: formData })
+  const sid = getSessionId()
+  const resp = await fetch(url, {
+    method: 'POST',
+    body: formData,
+    headers: sid ? { 'X-Session-Id': sid } : {},
+  })
 
   const payload = (await resp.json()) as ApiEnvelope<T>
   if (!resp.ok || payload.code !== 200 || payload.result === undefined) {
@@ -116,7 +127,10 @@ export async function apiDownload(path: string): Promise<Blob> {
   const base = requireValidApiBaseUrl()
   const separator = path.includes('?') ? '&' : '?'
   const url = `${base}${path.startsWith('/') ? '' : '/'}${path}${separator}_t=${Date.now()}`
-  const resp = await fetch(url)
+  const sid = getSessionId()
+  const resp = await fetch(url, {
+    headers: sid ? { 'X-Session-Id': sid } : {},
+  })
   if (!resp.ok) {
     throw new ApiError({ message: `HTTP ${resp.status}`, status: resp.status })
   }
