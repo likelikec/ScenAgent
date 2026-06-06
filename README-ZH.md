@@ -25,7 +25,7 @@ ScenAgent 不仅仅是一个自动化脚本，它是一个具备**认知能力**
 
 ## 🚀 功能特性
 
-- **多智能体架构**: 包含 Planner（规划）、Executor（执行）、Reflector（反思）、TaskJudge（评判）四大核心智能体。
+- **多智能体架构**: 包含 Planner（规划）、Executor（执行）、Reflector（反思）三类核心智能体。
 - **双模态操作**: 支持基于坐标的直接点击（VLLM）和基于标记的定位操作（SoM）。
 - **三种测试模式**：单APP单场景，单APP多场景，多APP多场景。
 - **记忆机制**: 支持短期任务记忆与长期经验积累（Tricks）。
@@ -151,16 +151,36 @@ python main.py \
 | 参数名 | 类型 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `--adb_path` | str | None | Android Debug Bridge (ADB) 可执行文件的完整路径。 |  
+| `--hdc_path` | str | None | HarmonyOS 设备控制命令 `hdc` 的路径。与 `--adb_path` 互斥，二选一。 |
 | `--api_key` | str | Required | LLM 服务的 API Key。 |
 | `--base_url` | str | Required | LLM 服务的 Base URL。 |
 | `--model` | str | Required | 使用的模型名称 (推荐 `gpt-4o`, `qwen-vl-max` 等具备视觉能力的模型)。 |
-| `--scenario_file` | str | `test.json` | 包含测试场景定义的 JSON 文件路径。 |
+| `--summary_api_key` | str | None | 摘要/翻译阶段使用的 API Key；不传时回退到 `--api_key`。 |
+| `--summary_base_url` | str | None | 摘要/翻译阶段使用的 Base URL；不传时回退到 `--base_url`。 |
+| `--summary_model` | str | None | 摘要/翻译阶段使用的模型名；不传时回退到 `--model`。 |
+| `--coor_type` | str | `qwen-vl` | 坐标类型。通常保持默认即可；需要直接使用绝对坐标时可改为 `abs`。 |
+| `--notetaker` | bool | `False` | 是否启用 Recorder/Notetaker。支持 `--notetaker`、`--notetaker true`、`--notetaker false`。 |
+| `--perception_mode` | str | `vllm` | 感知模式：`vllm` (纯视觉模型直接输出坐标) 或 `som` (基于 Set-of-Mark 标记定位)。 |
+| `--output_lang` | str | `zh` | 输出日志和报告的语言 (`zh` 或 `en`)。中文内容在任务结束后统一生成。 |
+| `--print_device_cmd` | bool | `None` | 是否打印 ADB/HDC 设备命令。支持 `--print_device_cmd`、`--print_device_cmd true`、`--print_device_cmd false`；不传时按环境变量/配置决定，当前默认开启。 |
+| `--scenario_file` | str | 自动回退到根目录 `test.json` | 包含测试场景定义的 JSON 文件路径。若不传且项目根目录存在 `test.json`，则自动使用它。 |
 | `--app_id` | str | None | 目标应用的 ID (需在 scenario_file 中定义)。 |
 | `--scenario_id` | str | None | 指定运行的单个场景 ID。 |
-| `--run_config` | str | None | 批量运行配置文件路径，用于一次性执行多个任务。 |
-| `--perception_mode` | str | `vllm` | 感知模式：`vllm` (纯视觉模型直接输出坐标) 或 `som` (基于 Set-of-Mark 标记定位)。 |
-| `--output_lang` | str | `zh` | 输出日志和报告的语言 (`zh` 或 `en`)。 |
+| `--scenario_start_id` | str | None | 指定批量运行时的起始场景 ID。 |
+| `--scenario_end_id` | str | None | 指定批量运行时的结束场景 ID。 |
+| `--run_config` | str | None | 批量运行配置。既可以是 JSON 文件路径，也可以直接传入 JSON 字符串。内容需为数组，每项至少包含 `app_id`，并可带 `start_id`、`end_id`、`scenario_id`/`specific_id`。 |
+| `--run_dir` | str | None | 单次运行的输出目录；多场景运行时也可作为统一输出根目录。 |
+| `--run_dir_prefix` | str | None | 多场景/批量运行时的输出根目录，系统会自动为每个场景创建子目录。 |
+| `--device_id` | str | None | 指定目标设备序列号；多设备连接时推荐显式传入。 |
 | `--planner_tricks` | str | `off` | 是否启用长期记忆/技巧库 (`on`/`off`)，用于加速常见任务。 |
+| `--planner_tricks_topk` | int | `0` | 启用 `planner_tricks` 时，最多注入多少条历史技巧到 Planner。 |
+| `--reflector_tree_check` | str | `off` | 是否启用基于 UI XML 树相似度的停滞检测 (`on`/`off`)；开启后仅在 Reflector 判断为 `C` 时触发额外检查。 |
+
+补充说明：
+
+- `--adb_path` 与 `--hdc_path` 不能同时传入。
+- `--scenario_id` 与 `--scenario_start_id` / `--scenario_end_id` / `--run_config` 是不同的选择任务方式，通常只用其中一种。
+- `--summary_*` 参数主要影响最终摘要、翻译和报告生成，不影响主执行链路的设备操作。
 
 ### Web 界面模式
 
@@ -170,7 +190,7 @@ python main.py \
     ```bash
     python web/server.py
     ```
-    服务将在 `http://localhost:8000` 启动。
+    服务将在 `http://localhost:8003` 启动。
 
 2.  **启动前端** (开发模式):
     ```bash
@@ -178,6 +198,11 @@ python main.py \
     npm run dev
     ```
     访问 `http://localhost:5173` 打开控制台。
+
+### Docker / 云边协同部署
+
+如果需要通过 Docker 在云服务器部署，并使用 FRP 连接本地 Windows 真机节点，请参考
+[cloud-edge-notes/README.md](cloud-edge-notes/README.md)。
 
 ---
 
@@ -220,4 +245,3 @@ python main.py \
 5.  开启一个 Pull Request
 
 ---
-

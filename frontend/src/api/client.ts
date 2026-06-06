@@ -20,6 +20,13 @@ export class ApiError extends Error {
 
 const API_BASE_URL_STORAGE_KEY = 'mobile_v4_api_base_url'
 
+function getDefaultApiBaseUrl(): string {
+  const { protocol, hostname, port } = window.location
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+  const inferredPort = isLocalHost && port === '5173' ? '8003' : '9000'
+  return `${protocol}//${hostname}:${inferredPort}`
+}
+
 export function getSessionId(): string | null {
   return sessionStorage.getItem('session_id') || null
 }
@@ -27,7 +34,7 @@ export function getSessionId(): string | null {
 export function getApiBaseUrl(): string {
   const stored = localStorage.getItem(API_BASE_URL_STORAGE_KEY)?.trim()
   const env = import.meta.env.VITE_API_BASE_URL?.trim()
-  const fallback = 'http://127.0.0.1:8000'
+  const fallback = getDefaultApiBaseUrl()
   const raw = stored || env || fallback
   return raw.endsWith('/') ? raw.slice(0, -1) : raw
 }
@@ -46,14 +53,14 @@ function requireValidApiBaseUrl(): string {
   if (!base) {
     throw new ApiError({
       message: 'API_BASE_URL 未配置',
-      detail: '请到 设置 填写后端地址，例如 http://127.0.0.1:8000',
+      detail: '请到 设置 填写后端地址，例如 http://127.0.0.1:8003',
       status: 0,
     })
   }
   if (!/^https?:\/\/.+/i.test(base)) {
     throw new ApiError({
       message: 'API_BASE_URL 格式错误',
-      detail: `当前值：${base}；示例：http://127.0.0.1:8000`,
+      detail: `当前值：${base}；示例：http://127.0.0.1:8003`,
       status: 0,
     })
   }

@@ -23,8 +23,8 @@ export function SettingsPage() {
 
   function validateApiBaseUrlOrThrow(value: string) {
     const v = value.trim()
-    if (!v) throw new Error('API_BASE_URL 不能为空（例如 http://127.0.0.1:8000）')
-    if (!/^https?:\/\/.+/i.test(v)) throw new Error('API_BASE_URL 格式错误（例如 http://127.0.0.1:8000）')
+    if (!v) throw new Error('API_BASE_URL 不能为空（例如 http://127.0.0.1:8003）')
+    if (!/^https?:\/\/.+/i.test(v)) throw new Error('API_BASE_URL 格式错误（例如 http://127.0.0.1:8003）')
   }
 
   function onSaveBaseUrl() {
@@ -94,7 +94,7 @@ export function SettingsPage() {
           <TextInput
             value={apiBaseUrl}
             onChange={(e) => setApiBaseUrlInput(e.currentTarget.value)}
-            placeholder="http://127.0.0.1:8000"
+            placeholder="http://127.0.0.1:8003"
           />
           <Group justify="flex-end">
             <Button variant="light" onClick={onSaveBaseUrl}>
@@ -122,7 +122,7 @@ export function SettingsPage() {
               label={t('settings.llm.baseUrl')}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.currentTarget.value)}
-              placeholder="http://127.0.0.1:8000"
+              placeholder="http://127.0.0.1:8003"
             />
             <TextInput
               label={t('settings.llm.model')}

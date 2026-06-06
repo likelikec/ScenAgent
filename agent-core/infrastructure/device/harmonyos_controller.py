@@ -153,3 +153,9 @@ class HarmonyOSController(DeviceController):
         self._run_command(command, emit=True)
         return command
 
+    def enter(self) -> str:
+        """回车键"""
+        command = self.hdc_path + " shell uitest uiInput keyEvent Enter"
+        self._run_command(command, emit=True)
+        return command
+

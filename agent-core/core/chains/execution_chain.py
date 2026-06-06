@@ -145,10 +145,10 @@ class ExecutionChain:
         # 更新状态
         self.state_manager.set_last_action(action_object, action_description)
         
-        # 等待（第一步等待时间更长）
+        # 等待（第一步等待时间更长）；已按实验需要缩短
         if is_first_step:
-            time.sleep(8)  # 首次打开应用可能有弹窗
-        time.sleep(2)
+            time.sleep(2)  # 首次打开应用可能有弹窗
+        time.sleep(1.5)
         
         # Get mark if used
         last_mark = self.action_service.get_last_used_mark() if self.perception_mode == "som" else None

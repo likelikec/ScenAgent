@@ -24,6 +24,6 @@ RUN mkdir -p /app/output /app/web/data/apks /app/web/data/scenarios /app/output-
   && useradd -m -u 10001 appuser \
   && chown -R appuser:appuser /app
 
-EXPOSE 8000
+EXPOSE 8003
 
 ENTRYPOINT ["/app/entrypoint.sh"]

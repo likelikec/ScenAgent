@@ -201,7 +201,7 @@ export function JobPage() {
                 当前 API_BASE_URL：{apiBaseUrl}
               </Text>
               <Text size="xs" c="dimmed">
-                页面地址 5173 是前端；任务数据需要通过 API_BASE_URL 访问后端（例如 8000）。
+                页面地址 5173 是前端；任务数据需要通过 API_BASE_URL 访问后端（例如 8003）。
               </Text>
             </Stack>
           </Alert>
