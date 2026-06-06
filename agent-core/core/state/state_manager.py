@@ -43,6 +43,14 @@ class StateManager:
             self.state.task.additional_knowledge_planner = planner
         if executor:
             self.state.task.additional_knowledge_executor = executor
+
+    def set_expected_result(self, expected_result: str = "") -> None:
+        """设置预期结果（测试预言/oracle）"""
+        self.state.task.expected_result = expected_result or ""
+
+    def get_expected_result(self) -> str:
+        """获取预期结果"""
+        return self.state.task.expected_result
     
     def set_perception_mode(self, mode: str) -> None:
         """设置感知模式"""

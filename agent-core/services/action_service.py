@@ -1,5 +1,6 @@
 """动作执行服务"""
 import json
+import re
 from typing import Dict, Any, Optional, Tuple, Union, List
 from infrastructure.device.device_controller import DeviceController
 from .coordinate_service import CoordinateService
@@ -267,11 +268,13 @@ class ActionService:
                 return self.device_controller.delete(count)
             
             elif action == SYSTEM_BUTTON:
-                button = action_object.get('button')
-                if button == "Back":
+                button = str(action_object.get('button') or '').strip().lower()
+                if button == "back":
                     return self.device_controller.back()
-                elif button == "Home":
+                elif button == "home":
                     return self.device_controller.home()
+                elif button == "enter":
+                    return self.device_controller.enter()
             
             elif action == WAIT:
                 time.sleep(2)
@@ -292,11 +295,24 @@ class ActionService:
         Returns:
             解析后的动作对象，如果失败返回None
         """
+        if not action_str:
+            return None
+
+        # 仅剥离代码围栏，避免误删动作参数中合法出现的 "json" 子串
+        s = action_str.strip()
+        s = re.sub(r"^```[a-zA-Z]*\s*", "", s)
+        s = re.sub(r"\s*```$", "", s).strip()
+
         try:
-            # 清理字符串
-            action_str = action_str.replace("```", "").replace("json", "").strip()
-            return json.loads(action_str)
+            return json.loads(s)
         except Exception as e:
+            # 兜底：从可能夹带说明文字的输出中提取第一个 JSON 对象
+            match = re.search(r"\{.*\}", s, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except Exception:
+                    pass
             print(f"Failed to parse action string: {e}")
             return None
 

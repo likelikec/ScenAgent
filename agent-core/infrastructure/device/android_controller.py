@@ -1,6 +1,8 @@
 """Android设备控制器实现"""
 import os
 import time
+import shutil
+import tempfile
 import subprocess
 from urllib.parse import quote
 from .device_controller import DeviceController
@@ -26,8 +28,12 @@ class AndroidController(DeviceController):
         if self.device_id:
             self.adb_base += f" -s {self.device_id}"
     
-    def _run_command(self, command: str, emit: bool = False) -> subprocess.CompletedProcess:
-        """执行命令并处理编码问题"""
+    # 单条 adb 命令的最长等待时间（秒）。设备 offline/半死时 adb 客户端可能阻塞，
+    # 没有超时会让整个 agent 永久卡死，故所有命令都强制超时。
+    CMD_TIMEOUT = 20
+
+    def _run_command(self, command: str, emit: bool = False, timeout: int = None) -> subprocess.CompletedProcess:
+        """执行命令并处理编码问题（带超时，防止 adb 阻塞导致 agent 卡死）"""
         # 如果命令不是以 adb_base 开头，且是 adb 命令，则自动补充
         if command.startswith("adb "):
             # 替换原始的 adb 路径为带 -s 的基础路径
@@ -38,14 +44,28 @@ class AndroidController(DeviceController):
 
         if emit and self.print_device_cmd:
             print(self._format_cmd_for_print(command))
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            shell=True,
-            encoding='utf-8',
-            errors='ignore'
-        )
+        effective_timeout = self.CMD_TIMEOUT if timeout is None else timeout
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                shell=True,
+                encoding='utf-8',
+                errors='ignore',
+                timeout=effective_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            # 超时视为该命令失败：返回一个失败结果，让上层走重试/优雅退出，
+            # 而不是无限阻塞。
+            if emit and self.print_device_cmd:
+                print(f"[ADB][TIMEOUT after {effective_timeout}s] {command}")
+            return subprocess.CompletedProcess(
+                command,
+                returncode=124,
+                stdout="",
+                stderr=f"TimeoutExpired after {effective_timeout}s",
+            )
         if emit and self.print_device_cmd:
             out = (result.stdout or "").strip()
             err = (result.stderr or "").strip()
@@ -63,6 +83,37 @@ class AndroidController(DeviceController):
             return f'[ADB] {self.adb_path} shell "{rest}"'
         return f"[ADB] {command}"
 
+    def _pull_to_unicode_path(self, remote: str, save_path: str) -> bool:
+        """adb pull 到可能含中文的本地路径。
+
+        Windows 下 subprocess shell=True 经 cmd.exe 传参会用 GBK 编码，含中文的
+        目标路径会被损坏（adb 报 No such file or directory）。这里先 pull 到纯
+        ASCII 临时文件，再用 Python（Unicode 安全）移动到最终路径。
+        """
+        suffix = os.path.splitext(save_path)[1] or ""
+        fd, tmp_path = tempfile.mkstemp(prefix="_mav4_pull_", suffix=suffix)
+        os.close(fd)
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        command = self.adb_path + f" pull {remote} \"{tmp_path}\""
+        self._run_command(command, emit=True)
+        if os.path.exists(tmp_path):
+            try:
+                parent = os.path.dirname(save_path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+                if os.path.exists(save_path):
+                    os.remove(save_path)
+                shutil.move(tmp_path, save_path)
+            except Exception:
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+        return os.path.exists(save_path)
+
     def get_screenshot(self, save_path: str) -> bool:
         """获取屏幕截图和DOM树"""
         # 获取截图
@@ -72,8 +123,7 @@ class AndroidController(DeviceController):
         command = self.adb_path + " shell screencap -p /sdcard/screenshot.png"
         self._run_command(command, emit=True)
         time.sleep(0.5)
-        command = self.adb_path + f" pull /sdcard/screenshot.png \"{save_path}\""
-        self._run_command(command, emit=True)
+        self._pull_to_unicode_path("/sdcard/screenshot.png", save_path)
 
         # 获取DOM树
         try:
@@ -84,13 +134,12 @@ class AndroidController(DeviceController):
                 command = self.adb_path + " shell uiautomator dump /sdcard/window_dump.xml"
                 self._run_command(command, emit=True)
                 time.sleep(0.5)
-                command = self.adb_path + f" pull /sdcard/window_dump.xml \"{xml_save_path}\""
-                self._run_command(command, emit=True)
+                self._pull_to_unicode_path("/sdcard/window_dump.xml", xml_save_path)
                 if os.path.exists(xml_save_path):
                     break
         except Exception:
             pass
-        
+
         return os.path.exists(save_path)
     
     def tap(self, x: int, y: int) -> str:
@@ -188,5 +237,11 @@ class AndroidController(DeviceController):
     def home(self) -> str:
         """主页键"""
         command = self.adb_path + f" shell am start -a android.intent.action.MAIN -c android.intent.category.HOME"
+        self._run_command(command, emit=True)
+        return command
+
+    def enter(self) -> str:
+        """回车键"""
+        command = self.adb_path + " shell input keyevent 66"
         self._run_command(command, emit=True)
         return command

@@ -55,20 +55,37 @@ class DeviceController(ABC):
         pass
     
     @abstractmethod
-    def slide(self, x1: int, y1: int, x2: int, y2: int) -> str:
+    def slide(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> str:
         """滑动
-        
+
         Args:
             x1: 起始X坐标
             y1: 起始Y坐标
             x2: 结束X坐标
             y2: 结束Y坐标
-            
+            duration: 滑动持续时间(ms)，默认500ms
+
         Returns:
             执行的命令字符串
         """
         pass
-    
+
+    @abstractmethod
+    def drag(self, x1: int, y1: int, x2: int, y2: int, duration: int = 1000) -> str:
+        """拖拽
+
+        Args:
+            x1: 起始X坐标
+            y1: 起始Y坐标
+            x2: 结束X坐标
+            y2: 结束Y坐标
+            duration: 拖拽持续时间(ms)，默认1000ms
+
+        Returns:
+            执行的命令字符串
+        """
+        pass
+
     @abstractmethod
     def back(self) -> str:
         """返回键
@@ -81,7 +98,16 @@ class DeviceController(ABC):
     @abstractmethod
     def home(self) -> str:
         """主页键
-        
+
+        Returns:
+            执行的命令字符串
+        """
+        pass
+
+    @abstractmethod
+    def enter(self) -> str:
+        """回车键
+
         Returns:
             执行的命令字符串
         """

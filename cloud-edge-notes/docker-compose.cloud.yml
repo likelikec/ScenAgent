@@ -1,0 +1,34 @@
+services:
+  frps:
+    image: snowdreamtech/frps
+    restart: always
+    volumes:
+      - ./frp/frps.toml:/etc/frp/frps.toml
+    command: frps -c /etc/frp/frps.toml
+    ports:
+      - "7000:7000"
+      # - "15555:15555" # 可选: 仅当需要从公网直接访问 ADB 时开启。为了安全建议注释掉，让 backend 通过内网访问。
+
+  backend:
+    image: likelikec/scen-agent-backend:latest
+    restart: unless-stopped
+    depends_on:
+      - frps
+    environment:
+      # [FRP 部署配置]
+      # 自动连接同网络下的 frps 容器
+      MOBILE_V4_DEVICES: "frps:15555"
+      MOBILE_V4_OUTPUT_DIR: "output"
+    volumes:
+      - ./web/data:/app/web/data
+      - ./output:/app/output
+    ports:
+      - "9000:8003"
+
+  frontend:
+    image: likelikec/scen-agent-frontend:latest
+    depends_on:
+      - backend
+    restart: unless-stopped
+    ports:
+      - "3000:80"

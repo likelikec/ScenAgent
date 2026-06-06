@@ -29,6 +29,7 @@ from infrastructure.device.android_controller import AndroidController
 from infrastructure.device.harmonyos_controller import HarmonyOSController
 from infrastructure.storage.log_service import LogService
 from infrastructure.storage.report_service import ReportService
+from infrastructure.storage.final_translation_service import FinalTranslationService
 from services.screenshot_service import ScreenshotService
 from services.action_service import ActionService
 from services.coordinate_service import CoordinateService
@@ -79,6 +80,17 @@ def _normalize_output_lang(output_lang: Optional[str]) -> str:
     if v in ("zh", "ch", "cn", "zh-cn", "zh_hans", "zh-hans"):
         return "zh"
     return "en"
+
+
+def _parse_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes", "y", "on"):
+        return True
+    if text in ("0", "false", "no", "n", "off"):
+        return False
+    raise argparse.ArgumentTypeError(f"invalid boolean value: {value}")
 
 
 def _load_tricks_hint(log_path: str, app_name: Optional[str], max_items: int = 6) -> str:
@@ -225,15 +237,15 @@ def run_instruction(
     run_dir: Optional[str] = None,
     print_device_cmd: Optional[bool] = None,
     perception_mode: str = "vllm",
-    max_step: int = 25,
+    max_step: int = 15,
     log_path: str = "./output",
     scenario_name: Optional[str] = None,
     app_name: Optional[str] = None,
     planner_tricks: str = "off",
     planner_tricks_topk: int = 6,
     reflector_tree_check: str = "off",
-    task_judge: str = "on",
     device_id: Optional[str] = None,
+    expected_result: str = "",
 ) -> str:
     """运行指令（重构后的版本）
     
@@ -291,7 +303,6 @@ def run_instruction(
     
     # 创建LLM提供者
     llm_provider = LLMFactory.create(
-        provider_type="gui_owl",  # 使用原有实现保持兼容
         api_key=api_key,
         base_url=base_url,
         model_name=model
@@ -319,19 +330,19 @@ def run_instruction(
         summary_llm_provider = llm_provider
     else:
         summary_llm_provider = LLMFactory.create(
-            provider_type="gui_owl",
             api_key=effective_summary_api_key,
             base_url=effective_summary_base_url,
             model_name=effective_summary_model,
             temperature=float(default_summary_temperature or 0.0),
             max_retry=int(default_summary_max_retry or 10),
         )
-    log_service = LogService(save_path, translator_provider=summary_llm_provider, output_lang=output_lang)
-    report_service = ReportService(translator_provider=summary_llm_provider, output_lang=output_lang)
+    log_service = LogService(save_path, output_lang=output_lang)
+    report_service = ReportService(output_lang=output_lang)
     
     # 创建状态管理器
     state_manager = StateManager()
     state_manager.set_instruction(instruction)
+    state_manager.set_expected_result(expected_result)
     if scenario_name:
         state_manager.set_task_name(scenario_name)
     tricks_hint = ""
@@ -360,18 +371,20 @@ def run_instruction(
         state_manager=state_manager,
         coor_type=coor_type,
         enable_notetaker=if_notetaker,
-        enable_task_judge=(str(task_judge).strip().lower() == "on"),
         perception_mode=perception_mode,
         enable_tree_stagnation_check=enable_tree_stagnation_check,
     )
     
     # 运行任务
-    return orchestrator.run(instruction, max_step)
+    run_path = orchestrator.run(instruction, max_step)
+    if output_lang == "zh":
+        FinalTranslationService(summary_llm_provider).translate_run_dir(run_path)
+    return run_path
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description="Run Mobile-Agent-v4 with LangChain architecture"
+        description="Run Mobile-Agent-v4 with GUI-Owl compatible architecture"
     )
     parser.add_argument("--adb_path", type=str)
     parser.add_argument("--hdc_path", type=str)
@@ -382,11 +395,11 @@ if __name__ == '__main__':
     parser.add_argument("--summary_base_url", type=str)
     parser.add_argument("--summary_model", type=str)
     parser.add_argument("--coor_type", type=str, default="qwen-vl")
-    parser.add_argument("--notetaker", type=bool, default=False)
+    parser.add_argument("--notetaker", nargs="?", const=True, default=False, type=_parse_bool)
     parser.add_argument("--perception_mode", type=str, choices=["vllm", "som"], default="vllm", 
                         help="Perception mode: 'vllm' for direct explore mode, 'som' for Set-of-Mark mapping(Debug mode)")
     parser.add_argument("--output_lang", type=str, choices=["zh", "ch", "en"], default="zh")
-    parser.add_argument("--print_device_cmd", type=bool, default=True)
+    parser.add_argument("--print_device_cmd", nargs="?", const=True, default=None, type=_parse_bool)
     parser.add_argument("--scenario_file", type=str)
     parser.add_argument("--app_id", type=str)
     parser.add_argument("--scenario_id", type=str)
@@ -399,7 +412,7 @@ if __name__ == '__main__':
     parser.add_argument("--planner_tricks", type=str, choices=["on", "off"], default="off")
     parser.add_argument("--planner_tricks_topk", type=int, default=0)
     parser.add_argument("--reflector_tree_check", type=str, choices=["on", "off"], default="off")
-    parser.add_argument("--task_judge", type=str, choices=["on", "off"], default="off")
+    parser.add_argument("--max_step", type=int, default=15)
     args = parser.parse_args()
     
     scenario_path = args.scenario_file
@@ -488,7 +501,15 @@ if __name__ == '__main__':
             composed_add_info = add_info_value
             if app_name:
                 composed_add_info = f"Target app: {app_name}. Extra: {add_info_value}".strip()
-            
+
+            # 预期结果（测试预言）：scenario 顶层 expected-results，与 extra-info 平级
+            expected_result_value = sc.get('expected-results') or sc.get('expected_result') or ''
+            if not isinstance(expected_result_value, str):
+                try:
+                    expected_result_value = json.dumps(expected_result_value, ensure_ascii=False)
+                except Exception:
+                    expected_result_value = ""
+
             run_dir = None
             run_error = None
             effective_run_dir = None
@@ -538,11 +559,12 @@ if __name__ == '__main__':
                     args.perception_mode,
                     scenario_name=sc.get('name') or instruction_text,
                     app_name=app_name,
+                    max_step=args.max_step,
                     planner_tricks=args.planner_tricks,
                     planner_tricks_topk=args.planner_tricks_topk,
                     reflector_tree_check=args.reflector_tree_check,
-                    task_judge=args.task_judge,
                     device_id=args.device_id,
+                    expected_result=expected_result_value,
                 )
             except Exception as exc:
                 run_error = exc

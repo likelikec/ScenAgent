@@ -14,7 +14,18 @@ class PlannerAgent(BaseMobileAgent):
         prompt = "You are an intelligent agent that can operate Android phones on behalf of users. Your goal is to understand the user's ultimate true intent, strictly track task progress, and create a high-level plan that starts from the current page, is executable, and can achieve the goal.\n\n"
         prompt += "### User Instruction ###\n"
         prompt += f"{state.task.instruction}\n\n"
-        
+
+        # 预期结果（测试预言）：仅当 scenario 提供了 expected-results 时注入
+        expected_block = ""
+        if state.task.expected_result.strip():
+            expected_block = (
+                "### Expected Result (Test Oracle) ###\n"
+                "This is the expected outcome that defines task success. "
+                "The task is complete ONLY when the current screen actually matches this:\n"
+                f"{state.task.expected_result}\n\n"
+            )
+        prompt += expected_block
+
         task_specific_note = ""
         if ".html" in state.task.instruction:
             task_specific_note = "Note: .html files may contain interactive elements (such as drawing canvases or games). Do not open other applications before the .html file task is completed."
@@ -37,13 +48,11 @@ class PlannerAgent(BaseMobileAgent):
             prompt += "Task-specific Guidelines:\n"
             if state.task.additional_knowledge_planner != "":
                 prompt += f"{state.task.additional_knowledge_planner}\n\n"
-                prompt += "If extra-info provides 'Prerequisites', first output a plan for fulfilling the prerequisites.\n "
-                prompt += "If it provides 'Key Information', you MUST explicitly incorporate these specific steps or logic into your plan, as they describe critical business rules or hidden paths (e.g., 'Click the hidden menu on the top right').\n"
-                prompt += "If it provides 'Input Data', treat the key-value pairs inside it as required input. When the plan involves filling forms or searching, use these exact values corresponding to their keys.\n\n"
-            
+                prompt += "Extra-info contains the input data for this task. When the plan involves typing, searching, or filling forms, use these exact values.\n\n"
+
             else:
                 prompt += f"{state.task.add_info_token}\n\n"
-            
+
             prompt += "Please output in the following format, containing two parts:\n"
             prompt += "### Thought ###\n"
             prompt += "Use English to explain in detail the reasoning behind your plan and the breakdown of subgoals.\n\n"
@@ -59,12 +68,11 @@ class PlannerAgent(BaseMobileAgent):
                 prompt += "### Completed Subgoals ###\n"
                 prompt += "Completed operation records:\n"
                 prompt += f"{state.planning.completed_plan_summary}\n\n"
-                prompt += "**CRITICAL!!!**: If the above history contains [Explored Component: \"component_name\", \"operation_description\"] markers, this indicates that the entry point has been explored but did not reach the goal. You must NOT include these marked components in the new plan! For example, if [Explored Component: \"Playback Settings\"] appears, do not plan to enter \"Playback Settings\" again; instead, try alternative paths or entry points that have not been marked as explored.\n\n"
-            
-            prompt += "### Plan-Guard (must obey, temporary) ###\n"
-            prompt += "Before outputting the updated plan, scan the plan for any entry points marked as [Explored Component: \"...\"] in Completed Subgoals. If your plan includes any explored component as an entry point for the same goal, you must revise the plan to use a different path.\n"
+                prompt += "**CRITICAL!!!**: Any entry point marked [Explored Component: \"...\"] above has already been explored without reaching the goal. Do NOT plan to enter it again; use a different path or entry point instead.\n\n"
+
+            prompt += "### Plan-Guard ###\n"
             prompt += "If the task appears stuck on the same page (repeated failures), revise the plan to change the approach (e.g., use search, go back, open a different menu) instead of repeating the same entry step.\n\n"
-            
+
             prompt += "### Plan ###\n"
             prompt += f"{state.planning.plan}\n\n"
             prompt += f"### Last Action ###\n"
@@ -84,10 +92,8 @@ class PlannerAgent(BaseMobileAgent):
             prompt += "Task-specific Guidelines:\n"
             if state.task.additional_knowledge_planner != "":
                 prompt += f"{state.task.additional_knowledge_planner}\n\n"
-                prompt += "If extra-info provides 'Prerequisites', first output a plan for fulfilling the prerequisites.\n "
-                prompt += "If it provides 'Key Information', you MUST explicitly incorporate these specific steps or logic into your plan, as they describe critical business rules or hidden paths (e.g., 'Click the hidden menu on the top right').\n"
-                prompt += "If it provides 'Input Data', treat the key-value pairs inside it as required input. When the plan involves filling forms or searching, use these exact values corresponding to their keys.\n\n"
-           
+                prompt += "Extra-info contains the input data for this task. When the plan involves typing, searching, or filling forms, use these exact values.\n\n"
+
             else:
                 prompt += f"{state.task.add_info_token}\n\n"
             
@@ -104,7 +110,8 @@ class PlannerAgent(BaseMobileAgent):
             prompt += "---\n"
             prompt += "Please carefully evaluate the current state and the provided screenshot, and check whether the existing plan needs revision. Determine whether the user's request has been fully completed; if you are certain that no further actions are needed, mark the plan as \"Finished\" in your output. **Note: The \"Finished\" marker must be strictly in English, do not translate it to Chinese.** If not yet completed, please update the plan. If blocked by errors, think step by step about whether a comprehensive revision of the plan is needed to resolve the errors.\n"
             prompt += "Instructions: 1) If the current situation hinders the original plan or requires user clarification, make reasonable assumptions without violating the context and revise the plan accordingly; 2) If the first subgoal in the plan has been completed, update the plan in time based on the screenshot and progress, ensuring the next subgoal is always at the top of the plan; 3) If the first subgoal is not completed, copy the previous plan or update it based on completion status.\n"
-            prompt += "Important: If the previous step successfully executed the `answer` action (Outcome: Success), you may mark the plan as \"Finished\" only if the task is completed and the 'Expected Result' (if provided in extra-info) is satisfied.\n"
+            prompt += "Important: Mark the plan as \"Finished\" ONLY when the task is completed AND (if an Expected Result is given above) the current screen actually satisfies it — verify it against the screenshot, not merely that the steps were executed.\n"
+            prompt += "If an Expected Result is given but the app's actual behavior clearly contradicts it (and this is NOT caused by your own operation error), you may still mark \"Finished\", but you MUST state in your ### Thought ### that this is a potential FUNCTIONAL DEFECT of the app under test, describing the expected vs. actual behavior.\n"
             if task_specific_note != "":
                 prompt += f"{task_specific_note}\n\n"
             
@@ -149,7 +156,10 @@ class PlannerAgent(BaseMobileAgent):
             completed_subgoal = "No completed subgoal."
         
         if "### Plan ###" in response:
-            plan = response.split("### Plan ###")[-1].replace("\n", " ").replace("  ", " ").strip()
+            # 保留计划各步骤之间的换行，仅压缩行内多余空格，
+            # 以便下游（_update_current_subgoal / _extract_first_step）按行解析
+            plan = response.split("### Plan ###")[-1].strip()
+            plan = re.sub(r"[ \t]+", " ", plan)
         else:
             # If Plan section is missing, return empty plan
             plan = ""

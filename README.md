@@ -25,7 +25,7 @@ ScenAgent is not just an automation script; it is an agent system with **cogniti
 
 ## 🚀 Features
 
-- **Multi-Agent Architecture**: Includes four core agents: Planner, Executor, Reflector, and TaskJudge.
+- **Multi-Agent Architecture**: Includes Planner, Executor, and Reflector core agents.
 - **Dual-Modal Operation**: Supports direct coordinate-based clicking (VLLM) and marker-based positioning (SoM).
 - **Three Testing Modes**: Single-APP Single-Scenario, Single-APP Multi-Scenario, Multi-APP Multi-Scenario.
 - **Memory Mechanism**: Supports short-term task memory and long-term experience accumulation (Tricks).
@@ -169,7 +169,7 @@ Start the Web service for a visual experience.
     ```bash
     python web/server.py
     ```
-    The service will start at `http://localhost:8000`.
+    The service will start at `http://localhost:8003`.
 
 2.  **Start Frontend** (Dev Mode):
     ```bash
@@ -177,6 +177,11 @@ Start the Web service for a visual experience.
     npm run dev
     ```
     Access `http://localhost:5173` to open the console.
+
+### Docker / Cloud-Edge Deployment
+
+For Docker deployment with a cloud server, FRP, and a local Windows device node,
+see [cloud-edge-notes/README.md](cloud-edge-notes/README.md).
 
 ---
 
@@ -219,4 +224,3 @@ Pull Requests are welcome!
 5.  Open a Pull Request
 
 ---
-

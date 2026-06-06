@@ -8,6 +8,7 @@ class TaskState(BaseModel):
     """任务相关状态"""
     instruction: str = ""
     task_name: str = ""
+    expected_result: str = ""  # 预期结果（测试预言/oracle），来自 scenario 的 expected-results
     additional_knowledge_planner: str = ""
     additional_knowledge_executor: str = ""
     add_info_token: str = "[add_info]"

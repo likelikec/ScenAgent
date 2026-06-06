@@ -83,16 +83,7 @@ def _count_exploration_steps(steps_dir: str) -> int:
     step_folders.sort(key=lambda x: x[0])
     if not step_folders:
         return 0
-    total = len(step_folders)
-    _, lastd = step_folders[-1]
-    last_step_dir = os.path.join(steps_dir, lastd)
-    has_task_judge = any(
-        os.path.exists(os.path.join(last_step_dir, name))
-        for name in ("task_judge.json", "task_judge.zh.json")
-    )
-    if has_task_judge:
-        total -= 1
-    return max(total, 0)
+    return len(step_folders)
 
 def _extract_thought(resp):
     if "### Thought" in resp and "### Plan" in resp:
@@ -163,9 +154,12 @@ def _read_json_file_safely(file_path, max_retries=3, retry_delay=0.5):
             time.sleep(retry_delay)
     return None
 
-def _get_total_plan_from_files(run_dir):
+def _get_total_plan_from_files(run_dir, output_lang="en"):
     exec_steps = ""
-    script_path = os.path.join(run_dir, "script.json")
+    script_name = "script.zh.json" if _normalize_output_lang(output_lang) == "zh" else "script.json"
+    script_path = os.path.join(run_dir, script_name)
+    if not os.path.exists(script_path) and script_name != "script.json":
+        script_path = os.path.join(run_dir, "script.json")
     if os.path.exists(script_path):
         sj = _read_json_file_safely(script_path)
         if sj:
@@ -379,7 +373,7 @@ def generate_excel_report(
         finish_dt = _parse_dt(tr.get("finish_dtime") or "")
         if start_dt and finish_dt:
             duration_seconds = round((finish_dt - start_dt).total_seconds(), 3)
-    exec_steps = _get_total_plan_from_files(run_dir)
+    exec_steps = _get_total_plan_from_files(run_dir, output_lang)
     completed = False if (step_limit and float(step_limit) != 0.0) else True
     if isinstance(task_status, str) and task_status.strip().lower() in ("not completed", "not_completed"):
         completed = False
@@ -512,7 +506,7 @@ def write_report_for_run(
         finish_dt = _parse_dt(tr.get("finish_dtime") or "")
         if start_dt and finish_dt:
             duration_seconds = round((finish_dt - start_dt).total_seconds(), 3)
-    exec_steps = _get_total_plan_from_files(run_dir)
+    exec_steps = _get_total_plan_from_files(run_dir, output_lang)
     completed = False if (step_limit and float(step_limit) != 0.0) else True
     if isinstance(task_status, str) and task_status.strip().lower() in ("not completed", "not_completed"):
         completed = False
